@@ -1,0 +1,19 @@
+{
+  "name": "baseline-report-app",
+  "version": "1.0.0",
+  "description": "Baseline compatibility scanner for web features",
+  "main": "index.js",
+  "bin": {
+    "baseline-scan": "./cli.js"
+  },
+  "scripts": {
+    "baseline-scan": "node cli.js"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "@babel/parser": "^7.28.4",
+    "commander": "^14.0.1",
+    "glob": "^11.0.3",
+    "web-features": "^3.1.0"
+  }
+}
