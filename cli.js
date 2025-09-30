@@ -14,6 +14,7 @@ function detectJSFeatures(ast, verbose = false) {
   let hasFetch = false;
   let hasPromiseAllSettled = false;
   let hasAsyncAwait = false;
+  let hasIntersectionObserver = false;
 
   ast.program.body.forEach((node) => {
     if (verbose) console.log(`JS Node: ${node.type}`);
@@ -46,19 +47,29 @@ function detectJSFeatures(ast, verbose = false) {
       hasAsyncAwait = true;
       if (verbose) console.log('Detected async/await');
     }
+    if (node.type === 'NewExpression' && node.callee.name === 'IntersectionObserver') {
+      hasIntersectionObserver = true;
+      if (verbose) console.log('Detected IntersectionObserver');
+    }
   });
 
   if (hasAbortController) features.push({ name: 'AbortController', key: 'aborting' });
   if (hasFetch) features.push({ name: 'fetch', key: 'fetch' });
   if (hasPromiseAllSettled) features.push({ name: 'Promise.allSettled', key: 'promise-allsettled' });
   if (hasAsyncAwait) features.push({ name: 'async/await', key: 'async-await' });
+  if (hasIntersectionObserver) features.push({ name: 'IntersectionObserver', key: 'intersection-observer' });
 
   return features;
 }
 
-function detectCSSFeatures(css, verbose = false) {
+function detectCSSFeatures(css, verbose = false, file = '') {
   const features = [];
-  const root = postcss.parse(css);
+  let root;
+  try {
+    root = postcss.parse(css);
+  } catch (err) {
+    throw new Error(`Invalid CSS syntax: ${err.message}`);
+  }
   root.walkRules((rule) => {
     if (verbose) console.log(`CSS Rule: ${rule.selector}`);
     try {
@@ -71,13 +82,17 @@ function detectCSSFeatures(css, verbose = false) {
         });
       }).processSync(rule.selector);
     } catch (err) {
-      console.error(`Error processing selector in rule: ${rule.selector}`, err.message);
+      console.error(`Error parsing selector in rule: ${rule.selector} in ${file}: ${err.message}`);
     }
     rule.walkDecls((decl) => {
       if (verbose) console.log(`Declaration: ${decl.prop}`);
       if (decl.prop === 'gap') {
         features.push({ name: 'gap', key: 'flexbox-gap' });
         if (verbose) console.log('Detected gap');
+      }
+      if (decl.prop === 'aspect-ratio') {
+        features.push({ name: 'aspect-ratio', key: 'aspect-ratio' });
+        if (verbose) console.log('Detected aspect-ratio');
       }
     });
   });
@@ -92,52 +107,78 @@ program
   .option('-v, --verbose', 'Enable verbose logging')
   .action((folderPath, options) => {
     const fullPath = path.resolve(folderPath);
-    const files = glob.sync('**/*.{js,css}', { cwd: fullPath });
-    if (files.length === 0) {
-      console.log('No JS/CSS files found in', fullPath);
-      return;
-    }
+    try {
+      const files = glob.sync('**/*.{js,css}', { cwd: fullPath });
+      if (files.length === 0) {
+        console.log('No JS/CSS files found in', fullPath);
+        return;
+      }
 
-    const results = [];
-    files.forEach((file) => {
-      const filePath = path.join(fullPath, file);
-      const code = fs.readFileSync(filePath, 'utf8');
-      try {
-        let detected;
-        if (file.endsWith('.js')) {
-          const ast = parseJS(code, { sourceType: 'module', errorRecovery: true });
-          detected = detectJSFeatures(ast, options.verbose);
-        } else if (file.endsWith('.css')) {
-          detected = detectCSSFeatures(code, options.verbose);
-        } else {
+      const results = [];
+      files.forEach((file) => {
+        const filePath = path.join(fullPath, file);
+        let code;
+        try {
+          code = fs.readFileSync(filePath, 'utf8');
+        } catch (err) {
+          console.error(`Error reading ${file}: ${err.message}`);
           return;
         }
 
-        detected.forEach((feat) => {
-          const featureData = webFeatures.features[feat.key];
-          // Workaround for :has (nesting) being incorrectly 'low' in web-features
-          const status = feat.key === 'nesting' ? 'baseline' : (featureData?.status?.baseline === 'high' ? 'baseline' : 'non-baseline');
-          results.push({ name: feat.name, status, file });
-        });
-      } catch (err) {
-        console.error(`Error parsing ${file}: ${err.message}`);
-      }
-    });
+        try {
+          let detected;
+          if (file.endsWith('.js')) {
+            try {
+              const ast = parseJS(code, { sourceType: 'module', errorRecovery: true });
+              detected = detectJSFeatures(ast, options.verbose);
+            } catch (err) {
+              console.error(`Skipping ${file}: Invalid JavaScript syntax - ${err.message}`);
+              return;
+            }
+          } else if (file.endsWith('.css')) {
+            try {
+              detected = detectCSSFeatures(code, options.verbose, file);
+            } catch (err) {
+              console.error(`Skipping ${file}: ${err.message}`);
+              return;
+            }
+          } else {
+            console.error(`Skipping ${file}: Unsupported file type`);
+            return;
+          }
 
-    if (results.length > 0) {
-      const summary = {
-        baseline: results.filter(r => r.status === 'baseline').length,
-        non_baseline: results.filter(r => r.status === 'non-baseline').length
-      };
-      const output = { summary, features: results };
-      console.log('Detected features:');
-      console.log(JSON.stringify(output, null, 2));
-      if (options.output) {
-        fs.writeFileSync(options.output, JSON.stringify(output, null, 2));
-        console.log(`Report saved to ${options.output}`);
+          detected.forEach((feat) => {
+            const featureData = webFeatures.features[feat.key];
+            // Workaround for :has (nesting) being incorrectly 'low' in web-features
+            const status = feat.key === 'nesting' ? 'baseline' : (featureData?.status?.baseline === 'high' ? 'baseline' : 'non-baseline');
+            results.push({ name: feat.name, status, file });
+          });
+        } catch (err) {
+          console.error(`Unexpected error processing ${file}: ${err.message}`);
+        }
+      });
+
+      if (results.length > 0) {
+        const summary = {
+          baseline: results.filter(r => r.status === 'baseline').length,
+          non_baseline: results.filter(r => r.status === 'non-baseline').length
+        };
+        const output = { summary, features: results };
+        console.log('Detected features:');
+        console.log(JSON.stringify(output, null, 2));
+        if (options.output) {
+          try {
+            fs.writeFileSync(options.output, JSON.stringify(output, null, 2));
+            console.log(`Report saved to ${options.output}`);
+          } catch (err) {
+            console.error(`Error saving report to ${options.output}: ${err.message}`);
+          }
+        }
+      } else {
+        console.log('No supported features detected.');
       }
-    } else {
-      console.log('No supported features detected.');
+    } catch (err) {
+      console.error(`Error scanning directory ${fullPath}: ${err.message}`);
     }
   });
 
