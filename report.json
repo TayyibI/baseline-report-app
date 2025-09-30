@@ -1,0 +1,29 @@
+{
+  "features": [
+    {
+      "name": "AbortController",
+      "status": "baseline",
+      "file": "sample.js"
+    },
+    {
+      "name": "fetch",
+      "status": "baseline",
+      "file": "sample.js"
+    },
+    {
+      "name": "Promise.allSettled",
+      "status": "baseline",
+      "file": "promise-sample.js"
+    },
+    {
+      "name": ":has",
+      "status": "non-baseline",
+      "file": "has-sample.css"
+    },
+    {
+      "name": "fetch",
+      "status": "baseline",
+      "file": "fetch-sample.js"
+    }
+  ]
+}
