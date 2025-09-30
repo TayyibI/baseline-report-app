@@ -1,0 +1,73 @@
+{
+  "summary": {
+    "baseline": 13,
+    "non_baseline": 0
+  },
+  "features": [
+    {
+      "name": "gap",
+      "status": "baseline",
+      "file": "tests\\raw-content.test.css"
+    },
+    {
+      "name": "gap",
+      "status": "baseline",
+      "file": "tests\\raw-content.oxide.test.css"
+    },
+    {
+      "name": "gap",
+      "status": "baseline",
+      "file": "tests\\basic-usage.test.css"
+    },
+    {
+      "name": "gap",
+      "status": "baseline",
+      "file": "tests\\basic-usage.oxide.test.css"
+    },
+    {
+      "name": "gap",
+      "status": "baseline",
+      "file": "tests\\arbitrary-values.test.css"
+    },
+    {
+      "name": "gap",
+      "status": "baseline",
+      "file": "tests\\arbitrary-values.test.css"
+    },
+    {
+      "name": "gap",
+      "status": "baseline",
+      "file": "tests\\arbitrary-values.oxide.test.css"
+    },
+    {
+      "name": "gap",
+      "status": "baseline",
+      "file": "tests\\arbitrary-values.oxide.test.css"
+    },
+    {
+      "name": "async/await",
+      "status": "baseline",
+      "file": "tests\\postcss-plugins\\nesting\\index.test.js"
+    },
+    {
+      "name": "async/await",
+      "status": "baseline",
+      "file": "standalone-cli\\tests\\test.js"
+    },
+    {
+      "name": "async/await",
+      "status": "baseline",
+      "file": "src\\cli\\build\\plugin.js"
+    },
+    {
+      "name": "async/await",
+      "status": "baseline",
+      "file": "integrations\\vite\\tests\\integration.test.js"
+    },
+    {
+      "name": "async/await",
+      "status": "baseline",
+      "file": "integrations\\content-resolution\\tests\\content.test.js"
+    }
+  ]
+}
