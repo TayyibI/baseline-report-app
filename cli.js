@@ -13,6 +13,7 @@ function detectJSFeatures(ast) {
   let hasAbortController = false;
   let hasFetch = false;
   let hasPromiseAllSettled = false;
+  let hasAsyncAwait = false;
 
   ast.program.body.forEach((node) => {
     if (node.type === 'NewExpression' && node.callee.name === 'AbortController') {
@@ -36,11 +37,15 @@ function detectJSFeatures(ast) {
     ) {
       hasPromiseAllSettled = true;
     }
+    if (node.type === 'FunctionDeclaration' && node.async || node.type === 'ArrowFunctionExpression' && node.async || node.type === 'AwaitExpression') {
+      hasAsyncAwait = true;
+    }
   });
 
   if (hasAbortController) features.push({ name: 'AbortController', key: 'aborting' });
   if (hasFetch) features.push({ name: 'fetch', key: 'fetch' });
   if (hasPromiseAllSettled) features.push({ name: 'Promise.allSettled', key: 'promise-allsettled' });
+  if (hasAsyncAwait) features.push({ name: 'async/await', key: 'async-await' });
 
   return features;
 }

@@ -1,0 +1,1 @@
+async function test() { await fetch('url'); }
