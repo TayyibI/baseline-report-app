@@ -103,7 +103,11 @@ program
     });
 
     if (results.length > 0) {
-      const output = { features: results };
+      const summary = {
+        baseline: results.filter(r => r.status === 'baseline').length,
+        non_baseline: results.filter(r => r.status === 'non-baseline').length
+      };
+      const output = { summary, features: results };
       console.log('Detected features:');
       console.log(JSON.stringify(output, null, 2));
       if (options.output) {
