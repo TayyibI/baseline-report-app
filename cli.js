@@ -3,10 +3,11 @@ const { program } = require('commander');
 const glob = require('glob');
 const path = require('path');
 const fs = require('fs');
-const { parse } = require('@babel/parser');
+const { parse: parseJS } = require('@babel/parser');
+const postcss = require('postcss');
+const selectorParser = require('postcss-selector-parser');
 const webFeatures = require('web-features');
 
-// Add after the imports
 function detectJSFeatures(ast) {
   const features = [];
   let hasAbortController = false;
@@ -14,7 +15,6 @@ function detectJSFeatures(ast) {
   let hasPromiseAllSettled = false;
 
   ast.program.body.forEach((node) => {
-    // AbortController (existing)
     if (node.type === 'NewExpression' && node.callee.name === 'AbortController') {
       hasAbortController = true;
     } else if (node.type === 'VariableDeclaration') {
@@ -24,12 +24,16 @@ function detectJSFeatures(ast) {
         }
       });
     }
-    // Fetch (CallExpression)
     if (node.type === 'ExpressionStatement' && node.expression.type === 'CallExpression' && node.expression.callee.name === 'fetch') {
       hasFetch = true;
     }
-    // Promise.allSettled (MemberExpression on Promise)
-    if (node.type === 'ExpressionStatement' && node.expression.type === 'CallExpression' && node.expression.callee.type === 'MemberExpression' && node.expression.callee.object.name === 'Promise' && node.expression.callee.property.name === 'allSettled') {
+    if (
+      node.type === 'ExpressionStatement' &&
+      node.expression.type === 'CallExpression' &&
+      node.expression.callee.type === 'MemberExpression' &&
+      node.expression.callee.object.name === 'Promise' &&
+      node.expression.callee.property.name === 'allSettled'
+    ) {
       hasPromiseAllSettled = true;
     }
   });
@@ -41,15 +45,35 @@ function detectJSFeatures(ast) {
   return features;
 }
 
+function detectCSSFeatures(css) {
+  const features = [];
+  const root = postcss.parse(css);
+  root.walkRules((rule) => {
+    try {
+      selectorParser((selectors) => {
+        selectors.walkPseudos((pseudo) => {
+          if (pseudo.value === ':has') {
+            features.push({ name: ':has', key: 'css-has' });
+          }
+        });
+      }).processSync(rule.selector);
+    } catch (err) {
+      console.error(`Error processing selector in rule: ${rule.selector}`, err.message);
+    }
+  });
+  return features;
+}
+
 program
   .version('1.0.0')
   .description('Baseline compatibility scanner')
   .argument('<path>', 'Folder to scan')
-  .action((folderPath) => {
+  .option('-o, --output <file>', 'Output JSON report to file')
+  .action((folderPath, options) => {
     const fullPath = path.resolve(folderPath);
-    const files = glob.sync('**/*.js', { cwd: fullPath });
+    const files = glob.sync('**/*.{js,css}', { cwd: fullPath });
     if (files.length === 0) {
-      console.log('No JS files found in', fullPath);
+      console.log('No JS/CSS files found in', fullPath);
       return;
     }
 
@@ -57,10 +81,16 @@ program
     files.forEach((file) => {
       const filePath = path.join(fullPath, file);
       const code = fs.readFileSync(filePath, 'utf8');
-      // Inside files.forEach
       try {
-        const ast = parse(code, { sourceType: 'module', errorRecovery: true });
-        const detected = detectJSFeatures(ast);
+        let detected;
+        if (file.endsWith('.js')) {
+          const ast = parseJS(code, { sourceType: 'module', errorRecovery: true });
+          detected = detectJSFeatures(ast);
+        } else if (file.endsWith('.css')) {
+          detected = detectCSSFeatures(code);
+        } else {
+          return;
+        }
 
         detected.forEach((feat) => {
           const featureData = webFeatures.features[feat.key];
@@ -69,36 +99,17 @@ program
         });
       } catch (err) {
         console.error(`Error parsing ${file}: ${err.message}`);
-      }/** 
-      try {
-        const ast = parse(code, { sourceType: 'module', errorRecovery: true });
-        let hasAbortController = false;
-
-        ast.program.body.forEach((node) => {
-          if (node.type === 'NewExpression' && node.callee.name === 'AbortController') {
-            hasAbortController = true;
-          } else if (node.type === 'VariableDeclaration') {
-            node.declarations.forEach((decl) => {
-              if (decl.init && decl.init.type === 'NewExpression' && decl.init.callee.name === 'AbortController') {
-                hasAbortController = true;
-              }
-            });
-          }
-        });
-
-        if (hasAbortController) {
-          const featureData = webFeatures.features['aborting'];
-          const status = featureData?.status?.baseline === 'high' ? 'baseline' : 'non-baseline';
-          results.push({ name: 'AbortController', status, file });
-        }
-      } catch (err) {
-        console.error(`Error parsing ${file}: ${err.message}`);
-      }*/
+      }
     });
 
     if (results.length > 0) {
+      const output = { features: results };
       console.log('Detected features:');
-      console.log(JSON.stringify(results, null, 2));
+      console.log(JSON.stringify(output, null, 2));
+      if (options.output) {
+        fs.writeFileSync(options.output, JSON.stringify(output, null, 2));
+        console.log(`Report saved to ${options.output}`);
+      }
     } else {
       console.log('No supported features detected.');
     }
