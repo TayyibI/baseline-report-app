@@ -15,6 +15,7 @@ function detectJSFeatures(ast, verbose = false) {
   let hasPromiseAllSettled = false;
   let hasAsyncAwait = false;
   let hasIntersectionObserver = false;
+  let hasArrayAt = false;
 
   ast.program.body.forEach((node) => {
     if (verbose) console.log(`JS Node: ${node.type}`);
@@ -51,6 +52,16 @@ function detectJSFeatures(ast, verbose = false) {
       hasIntersectionObserver = true;
       if (verbose) console.log('Detected IntersectionObserver');
     }
+    if (
+      node.type === 'ExpressionStatement' &&
+      node.expression.type === 'CallExpression' &&
+      node.expression.callee.type === 'MemberExpression' &&
+      node.expression.callee.property.name === 'at' &&
+      (node.expression.callee.object.type === 'ArrayExpression' || node.expression.callee.object.type === 'Identifier')
+    ) {
+      hasArrayAt = true;
+      if (verbose) console.log('Detected Array.prototype.at');
+    }
   });
 
   if (hasAbortController) features.push({ name: 'AbortController', key: 'aborting' });
@@ -58,6 +69,7 @@ function detectJSFeatures(ast, verbose = false) {
   if (hasPromiseAllSettled) features.push({ name: 'Promise.allSettled', key: 'promise-allsettled' });
   if (hasAsyncAwait) features.push({ name: 'async/await', key: 'async-await' });
   if (hasIntersectionObserver) features.push({ name: 'IntersectionObserver', key: 'intersection-observer' });
+  if (hasArrayAt) features.push({ name: 'Array.prototype.at', key: 'array-at' });
 
   return features;
 }
@@ -94,6 +106,10 @@ function detectCSSFeatures(css, verbose = false, file = '') {
         features.push({ name: 'aspect-ratio', key: 'aspect-ratio' });
         if (verbose) console.log('Detected aspect-ratio');
       }
+      if (decl.prop === 'container-type' || decl.prop === 'container-name' || decl.prop === 'container') {
+        features.push({ name: 'container-queries', key: 'css-container-queries' });
+        if (verbose) console.log('Detected container-queries');
+      }
     });
   });
   return features;
@@ -105,6 +121,7 @@ program
   .argument('<path>', 'Folder to scan')
   .option('-o, --output <file>', 'Output JSON report to file')
   .option('-v, --verbose', 'Enable verbose logging')
+  .option('-f, --filter <type>', 'Filter by feature name or file type (js, css)')
   .action((folderPath, options) => {
     const fullPath = path.resolve(folderPath);
     try {
@@ -116,6 +133,10 @@ program
 
       const results = [];
       files.forEach((file) => {
+        // Apply file type filter
+        if (options.filter === 'js' && !file.endsWith('.js')) return;
+        if (options.filter === 'css' && !file.endsWith('.css')) return;
+
         const filePath = path.join(fullPath, file);
         let code;
         try {
@@ -147,7 +168,12 @@ program
             return;
           }
 
-          detected.forEach((feat) => {
+          // Apply feature filter
+          const filtered = options.filter && !['js', 'css'].includes(options.filter)
+            ? detected.filter(feat => feat.name.toLowerCase() === options.filter.toLowerCase())
+            : detected;
+
+          filtered.forEach((feat) => {
             const featureData = webFeatures.features[feat.key];
             // Workaround for :has (nesting) being incorrectly 'low' in web-features
             const status = feat.key === 'nesting' ? 'baseline' : (featureData?.status?.baseline === 'high' ? 'baseline' : 'non-baseline');
