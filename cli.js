@@ -7,6 +7,7 @@
      const postcss = require('postcss');
      const selectorParser = require('postcss-selector-parser');
      const webFeatures = require('web-features');
+     const { Parser } = require('json2csv');
 
      function detectJSFeatures(ast, verbose = false) {
        const features = [];
@@ -140,6 +141,7 @@
        .option('-o, --output <file>', 'Output JSON report to file')
        .option('-v, --verbose', 'Enable verbose logging')
        .option('-f, --filter <type>', 'Filter by feature name or file type (js, css)')
+       .option('-r, --report-format <format>', 'Output format (json, csv)', 'json')
        .action((folderPath, options) => {
          const fullPath = path.resolve(folderPath);
          try {
@@ -207,10 +209,19 @@
              const output = { summary, features: results };
              console.log('Detected features:');
              console.log(JSON.stringify(output, null, 2));
+
              if (options.output) {
                try {
-                 fs.writeFileSync(options.output, JSON.stringify(output, null, 2));
-                 console.log(`Report saved to ${options.output}`);
+                 if (options.reportFormat === 'csv') {
+                   const fields = ['name', 'status', 'file'];
+                   const csvParser = new Parser({ fields });
+                   const csv = csvParser.parse(results);
+                   fs.writeFileSync(options.output, csv);
+                   console.log(`CSV report saved to ${options.output}`);
+                 } else {
+                   fs.writeFileSync(options.output, JSON.stringify(output, null, 2));
+                   console.log(`JSON report saved to ${options.output}`);
+                 }
                } catch (err) {
                  console.error(`Error saving report to ${options.output}: ${err.message}`);
                }
