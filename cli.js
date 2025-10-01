@@ -107,7 +107,7 @@ function detectCSSFeatures(css, verbose = false, file = '') {
         if (verbose) console.log('Detected aspect-ratio');
       }
       if (decl.prop === 'container-type' || decl.prop === 'container-name' || decl.prop === 'container') {
-        features.push({ name: 'container-queries', key: 'css-container-queries' });
+        features.push({ name: 'container-queries', key: 'container-queries' }); // Fixed key
         if (verbose) console.log('Detected container-queries');
       }
     });
@@ -133,7 +133,6 @@ program
 
       const results = [];
       files.forEach((file) => {
-        // Apply file type filter
         if (options.filter === 'js' && !file.endsWith('.js')) return;
         if (options.filter === 'css' && !file.endsWith('.css')) return;
 
@@ -168,14 +167,12 @@ program
             return;
           }
 
-          // Apply feature filter
           const filtered = options.filter && !['js', 'css'].includes(options.filter)
             ? detected.filter(feat => feat.name.toLowerCase() === options.filter.toLowerCase())
             : detected;
 
           filtered.forEach((feat) => {
             const featureData = webFeatures.features[feat.key];
-            // Workaround for :has (nesting) being incorrectly 'low' in web-features
             const status = feat.key === 'nesting' ? 'baseline' : (featureData?.status?.baseline === 'high' ? 'baseline' : 'non-baseline');
             results.push({ name: feat.name, status, file });
           });
