@@ -1,0 +1,18 @@
+{
+  "summary": {
+    "baseline": 2,
+    "non_baseline": 0
+  },
+  "features": [
+    {
+      "name": "fetch",
+      "status": "baseline",
+      "file": "sample.js"
+    },
+    {
+      "name": "fetch",
+      "status": "baseline",
+      "file": "fetch-sample.js"
+    }
+  ]
+}

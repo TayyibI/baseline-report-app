@@ -1,0 +1,13 @@
+{
+  "summary": {
+    "baseline": 1,
+    "non_baseline": 0
+  },
+  "features": [
+    {
+      "name": "container-queries",
+      "status": "baseline",
+      "file": "container-sample.css"
+    }
+  ]
+}

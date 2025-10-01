@@ -1,0 +1,38 @@
+{
+  "summary": {
+    "baseline": 6,
+    "non_baseline": 0
+  },
+  "features": [
+    {
+      "name": "AbortController",
+      "status": "baseline",
+      "file": "sample.js"
+    },
+    {
+      "name": "fetch",
+      "status": "baseline",
+      "file": "sample.js"
+    },
+    {
+      "name": "Promise.allSettled",
+      "status": "baseline",
+      "file": "promise-sample.js"
+    },
+    {
+      "name": "fetch",
+      "status": "baseline",
+      "file": "fetch-sample.js"
+    },
+    {
+      "name": "Array.prototype.at",
+      "status": "baseline",
+      "file": "at-sample.js"
+    },
+    {
+      "name": "async/await",
+      "status": "baseline",
+      "file": "async-sample.js"
+    }
+  ]
+}
