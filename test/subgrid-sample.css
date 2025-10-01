@@ -1,1 +1,4 @@
-.grid { display: grid; grid-template-columns: subgrid; }
+.grid { 
+    display: grid;
+    grid-template-columns: subgrid; 
+}
